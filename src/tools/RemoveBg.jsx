@@ -432,7 +432,7 @@ export default function RemoveBg({ onBack }) {
         </div>
       ) : (
         /* Editor Studio */
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '16px', alignItems: 'start' }}>
           {/* Controls Column */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

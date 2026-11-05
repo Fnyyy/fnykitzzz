@@ -81,7 +81,7 @@ export default function FoodRoulette({ onBack }) {
       </div>
 
       {/* Categories */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '20px' }}>
+      <div className="category-scroll-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '20px' }}>
         {categories.map(cat => (
           <button
             key={cat}

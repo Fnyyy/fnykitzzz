@@ -502,18 +502,18 @@ Berikan ringkasan dengan format JSON yang valid persis seperti skema ini:
       </div>
 
       {/* ═══════════ MAIN TWO-COLUMN / STACK LAYOUT ═══════════ */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '16px' }}>
         
         {/* LEFT COLUMN: INPUT SECTION */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
-          <div className="card" style={{ padding: '18px' }}>
-            {/* Input Tabs */}
-            <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', borderBottom: '1px solid var(--line)', paddingBottom: '12px' }}>
+          <div className="card" style={{ padding: '16px' }}>
+            {/* Input Tabs (Responsive wrap) */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', borderBottom: '1px solid var(--line)', paddingBottom: '12px', flexWrap: 'wrap' }}>
               {[
-                { id: 'pdf', label: 'Upload PDF Jurnal', icon: FileText },
-                { id: 'ocr', label: 'Foto/Scan Jurnal', icon: Upload },
-                { id: 'text', label: 'Ketik / Tempel', icon: BookOpen }
+                { id: 'pdf', label: 'PDF Jurnal', icon: FileText },
+                { id: 'ocr', label: 'Foto/Scan', icon: Upload },
+                { id: 'text', label: 'Teks / Tempel', icon: BookOpen }
               ].map(tab => {
                 const Icon = tab.icon;
                 const active = inputTab === tab.id;

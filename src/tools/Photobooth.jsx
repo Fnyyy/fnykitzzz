@@ -308,11 +308,11 @@ export default function Photobooth({ onBack }) {
         <div style={{ width: '80px' }} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px' }}>
         {/* Left Column: Camera & Controls */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           {/* Camera Viewport */}
-          <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: 0, background: '#1c1c1c', minHeight: '320px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="card" style={{ position: 'relative', overflow: 'hidden', padding: 0, background: '#1c1c1c', minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             {/* Video element ALWAYS mounted to guarantee ref and stream binding */}
             <video
               ref={videoRef}
@@ -386,7 +386,7 @@ export default function Photobooth({ onBack }) {
 
           {/* Camera Buttons */}
           {cameraActive && (
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 onClick={() => {
                   const nextFacing = facingMode === 'user' ? 'environment' : 'user';

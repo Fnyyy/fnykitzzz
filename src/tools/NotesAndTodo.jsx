@@ -68,15 +68,15 @@ export default function NotesAndTodo({ onBack }) {
   return (
     <div className="animate-fade" style={{ maxWidth: '840px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <button onClick={onBack} className="btn btn-secondary" style={{ padding: '8px 16px' }}>
-          <ChevronLeft size={18} /> Kembali
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
+        <button onClick={onBack} className="btn btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem' }}>
+          <ChevronLeft size={16} /> Kembali
         </button>
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Tugas & Catatan</h1>
-          <p style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>Tersimpan otomatis di penyimpanan lokal browser Anda</p>
+        <div style={{ textAlign: 'center', flex: 1, minWidth: '180px' }}>
+          <h1 style={{ fontSize: 'clamp(1.2rem, 4vw, 1.4rem)', fontWeight: 800, margin: 0 }}>Tugas & Catatan</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: '2px 0 0' }}>Tersimpan otomatis di penyimpanan lokal browser Anda</p>
         </div>
-        <div style={{ width: '80px' }} />
+        <div style={{ width: '40px' }} />
       </div>
 
       {/* Segmented Tab */}

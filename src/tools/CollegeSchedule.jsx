@@ -1157,35 +1157,41 @@ export default function CollegeSchedule({ onBack }) {
   return (
     <div className="animate-fade" style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '90px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
-        <button onClick={onBack} className="btn btn-secondary" style={{ padding: '8px 16px' }}>
-          <ChevronLeft size={18} /> Kembali
-        </button>
+      {/* Header Bar */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          <button onClick={onBack} className="btn btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem' }}>
+            <ChevronLeft size={16} /> Kembali
+          </button>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', fontWeight: 700, color: 'var(--purple)', background: 'var(--purple-light)', padding: '5px 12px', borderRadius: 'var(--radius-full)' }}>
+            <Calendar size={13} /> {studentProfile?.prodi || 'Akademik Kuliah'}
+          </div>
+        </div>
 
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-            <Calendar size={22} color="var(--purple)" /> Jadwal Kuliah & Manajemen Tugas
+        <div>
+          <h1 style={{ fontSize: 'clamp(1.2rem, 4vw, 1.5rem)', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 4px', color: 'var(--ink)' }}>
+            <Calendar size={22} color="var(--purple)" /> Jadwal Kuliah & Tugas
           </h1>
-          <p style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
+          <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: 0 }}>
             Auto KSM, Sinkronisasi Kalender HP (Google/Apple), dan Pengingat Tugas Otomatis
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', width: '100%' }}>
           {currentView === 'schedule' ? (
             <>
               <button
                 onClick={handleDownloadIcs}
                 className="btn btn-secondary"
                 title="Download file .ics untuk Google Calendar, Outlook, iPhone, Android"
-                style={{ padding: '8px 12px', fontSize: '0.8rem', gap: '6px' }}
+                style={{ padding: '8px 12px', fontSize: '0.8rem', gap: '6px', flex: '1 1 auto' }}
               >
                 <CalendarDays size={16} color="var(--purple)" /> Ekspor Kalender (.ics)
               </button>
               <button
                 onClick={() => { setUploadError(''); setPreviewParsed(null); setShowUploadModal(true); }}
                 className="btn btn-primary"
-                style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px' }}
+                style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px', flex: '1 1 auto' }}
               >
                 <Sparkles size={16} /> Auto KSM (PDF/Foto)
               </button>
@@ -1203,7 +1209,7 @@ export default function CollegeSchedule({ onBack }) {
                 onClick={() => { setDetectedTasksPreview(null); setScreenshotPreview(null); setShowScreenshotModal(true); }}
                 className="btn btn-primary"
                 title="Scan tangkapan layar CeLO (Upload atau Ctrl+V)"
-                style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px', background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px', background: 'linear-gradient(135deg, #10b981, #059669)', flex: '1 1 auto' }}
               >
                 <Sparkles size={16} /> 📸 Scan Screenshot CeLO
               </button>
@@ -1213,22 +1219,22 @@ export default function CollegeSchedule({ onBack }) {
                 title="Sambungkan dan impor tugas dari CeLO Telkom University"
                 style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px' }}
               >
-                <Link2 size={16} /> Cara CeLO Lainnya
+                <Link2 size={16} /> Cara Lain
               </button>
               <button
                 onClick={handleDownloadTasksIcs}
                 className="btn btn-secondary"
                 title="Download file .ics tugas untuk Kalender HP"
-                style={{ padding: '8px 12px', fontSize: '0.8rem', gap: '6px' }}
+                style={{ padding: '8px 12px', fontSize: '0.8rem', gap: '6px', flex: '1 1 auto' }}
               >
-                <Smartphone size={16} color="var(--purple)" /> Ekspor ke Kalender HP
+                <Smartphone size={16} color="var(--purple)" /> Kalender HP (.ics)
               </button>
               <button
                 onClick={handleOpenAddTask}
                 className="btn btn-secondary"
                 style={{ padding: '8px 14px', fontSize: '0.82rem', gap: '6px' }}
               >
-                <Plus size={16} /> Tambah Manual
+                <Plus size={16} /> Manual
               </button>
             </>
           )}
@@ -1424,7 +1430,7 @@ export default function CollegeSchedule({ onBack }) {
           )}
 
           {/* Days Tabs Filter */}
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '18px' }}>
+          <div className="category-scroll-container" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '10px', marginBottom: '18px' }}>
             {['Semua', ...DAYS].map(day => {
               const count = day === 'Semua' ? schedules.length : schedules.filter(s => s.day === day).length;
               const isToday = day.toLowerCase() === todayName.toLowerCase();

@@ -166,7 +166,7 @@ export default function Home({ onSelectTool }) {
 
         {/* Title */}
         <h1 style={{
-          fontSize: '3rem', fontWeight: 900, letterSpacing: '-1.2px',
+          fontSize: 'clamp(2.2rem, 8vw, 3rem)', fontWeight: 900, letterSpacing: '-1.2px',
           marginBottom: '8px', lineHeight: 1.1,
           background: 'linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
@@ -175,17 +175,17 @@ export default function Home({ onSelectTool }) {
           fnykids
         </h1>
 
-        <p style={{ fontSize: '1.05rem', color: 'var(--muted)', maxWidth: '540px', lineHeight: 1.55, position: 'relative', zIndex: 1 }}>
+        <p style={{ fontSize: 'clamp(0.88rem, 3.2vw, 1.05rem)', color: 'var(--muted)', maxWidth: '540px', lineHeight: 1.55, position: 'relative', zIndex: 1 }}>
           Tools seru untuk foto, kolase, spin wheel, kelompok, jadwal kuliah & ringkas jurnal.
           <br />Semuanya berjalan lokal di browsermu — aman, privat, & tanpa kuota server.
         </p>
 
         {/* Search */}
-        <div style={{ width: '100%', maxWidth: '480px', marginTop: '24px', position: 'relative', zIndex: 1 }}>
+        <div style={{ width: '100%', maxWidth: '480px', marginTop: '20px', position: 'relative', zIndex: 1 }}>
           <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
           <input
             type="text"
-            placeholder="Cari tools (misal: jurnal, ksm, photobooth, hapus background)..."
+            placeholder="Cari tools..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="input-field"
@@ -197,8 +197,8 @@ export default function Home({ onSelectTool }) {
           />
         </div>
 
-        {/* Category Pills */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '18px', flexWrap: 'wrap', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
+        {/* Category Pills (Touch Swipeable on Mobile) */}
+        <div className="category-scroll-container" style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
           {categories.map(cat => (
             <button
               key={cat}
@@ -212,11 +212,11 @@ export default function Home({ onSelectTool }) {
         </div>
       </div>
 
-      {/* Tools Grid */}
-      <div style={{
+      {/* Tools Grid (Responsive 1-col on mobile, multi-col on tablet/desktop) */}
+      <div className="tools-grid" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-        gap: '18px', padding: '0 8px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))',
+        gap: '16px', padding: '0 4px'
       }}>
         {filteredTools.map(tool => {
           const IconComp = tool.icon;
@@ -224,10 +224,10 @@ export default function Home({ onSelectTool }) {
             <div
               key={tool.id}
               onClick={() => onSelectTool(tool.id)}
-              className="card"
+              className="card tool-card-inner"
               style={{
                 cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                justifyContent: 'space-between', padding: '24px',
+                justifyContent: 'space-between', padding: '22px',
                 position: 'relative', overflow: 'hidden'
               }}
             >

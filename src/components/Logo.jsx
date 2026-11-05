@@ -101,3 +101,4 @@ export default function Logo({ size = 36, showText = false, textStyle = {}, clas
     </div>
   );
 }
+

@@ -51,17 +51,17 @@ export default function App() {
       {/* ═══════════  NAVBAR  ═══════════ */}
       <header style={{
         position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(248, 250, 252, 0.92)',
+        background: 'rgba(248, 250, 252, 0.94)',
         backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
         borderBottom: '1px solid var(--line)',
-        padding: '10px 20px'
+        padding: '10px 16px'
       }}>
         <div style={{
           maxWidth: '1060px', margin: '0 auto',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px'
         }}>
           <div onClick={goHome}
-            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', transition: 'transform 0.2s' }}
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', transition: 'transform 0.2s', flexShrink: 0 }}
             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
@@ -70,30 +70,32 @@ export default function App() {
 
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: '5px',
-            background: 'var(--cyan-light)', padding: '4px 12px',
+            background: 'var(--cyan-light)', padding: '4px 10px',
             borderRadius: 'var(--radius-full)',
-            fontSize: '0.74rem', fontWeight: 700, color: 'var(--cyan-dark)'
+            fontSize: '0.72rem', fontWeight: 700, color: 'var(--cyan-dark)',
+            whiteSpace: 'nowrap'
           }}>
-            <Shield size={13} /> Offline / Lokal
+            <Shield size={12} />
+            <span>Lokal / Privat</span>
           </div>
         </div>
       </header>
 
       {/* ═══════════  CONTENT  ═══════════ */}
-      <main style={{ flex: 1, padding: '20px 14px' }}>
+      <main style={{ flex: 1, padding: '16px 12px 105px' }}>
         {renderTool()}
       </main>
 
       {/* ═══════════  BOTTOM NAV  ═══════════ */}
-      <nav style={{
+      <nav className="mobile-bottom-nav" style={{
         position: 'fixed', bottom: '14px', left: '50%',
         transform: 'translateX(-50%)', zIndex: 200,
-        background: 'rgba(26, 26, 46, 0.92)',
-        backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)',
+        background: 'rgba(15, 23, 42, 0.94)',
+        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
         padding: '5px 10px', borderRadius: 'var(--radius-full)',
-        display: 'flex', gap: '3px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-        border: '1px solid rgba(255,255,255,0.08)'
+        display: 'flex', gap: '4px',
+        boxShadow: '0 10px 35px rgba(0,0,0,0.3)',
+        border: '1px solid rgba(255,255,255,0.12)'
       }}>
         {[
           { id: 'home', label: 'Home', icon: HomeIcon },
@@ -105,20 +107,23 @@ export default function App() {
           const Icon = item.icon;
           const isActive = currentTool === item.id;
           return (
-            <button key={item.id} onClick={() => setCurrentTool(item.id)}
+            <button
+              key={item.id}
+              onClick={() => setCurrentTool(item.id)}
+              className={`mobile-nav-btn ${isActive ? 'active' : ''}`}
               style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
-                padding: '8px 14px', borderRadius: 'var(--radius-full)',
+                padding: '8px 13px', borderRadius: 'var(--radius-full)',
                 color: isActive ? '#fff' : 'rgba(255,255,255,0.7)',
                 background: isActive
                   ? 'linear-gradient(135deg, #2563eb, #0ea5e9)'
                   : 'transparent',
-                fontSize: '0.78rem', fontWeight: 700,
+                fontSize: '0.76rem', fontWeight: 700,
                 transition: 'var(--transition)',
                 boxShadow: isActive ? '0 2px 10px rgba(37, 99, 235, 0.4)' : 'none'
               }}
             >
-              <Icon size={15} />
+              <Icon size={16} />
               <span>{item.label}</span>
             </button>
           );

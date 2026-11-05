@@ -253,3 +253,85 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   border: none;
 }
+
+/* ═══════════ RESPONSIVE MOBILE OPTIMIZATIONS ═══════════ */
+@media (max-width: 640px) {
+  body {
+    background-size: 100% 100%, 100% 100%, 100% 100%, 18px 18px;
+    font-size: 14px;
+  }
+
+  .card {
+    padding: 16px !important;
+    border-radius: var(--radius-md) !important;
+  }
+
+  .btn {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+  }
+
+  /* Prevent auto-zoom on mobile inputs in iOS */
+  .input-field, input[type="text"], input[type="search"], textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* Mobile Horizontal Scroll for Tabs/Pills */
+  .category-scroll-container {
+    display: flex !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+    padding: 6px 4px !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start !important;
+  }
+  .category-scroll-container::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Floating Bottom Navigation for Mobile */
+  .mobile-bottom-nav {
+    width: calc(100vw - 20px) !important;
+    max-width: 440px !important;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 4px 6px !important;
+    gap: 2px !important;
+    justify-content: space-around !important;
+  }
+
+  .mobile-nav-btn {
+    padding: 7px 10px !important;
+    font-size: 0.72rem !important;
+    gap: 4px !important;
+    flex: 1 !important;
+    justify-content: center !important;
+  }
+
+  /* Compact grid on mobile phones */
+  .tools-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+    padding: 0 !important;
+  }
+
+  .tool-card-inner {
+    padding: 16px !important;
+  }
+
+  /* Full-width responsive button groups */
+  .mobile-btn-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+  }
+
+  .mobile-btn-stack > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+

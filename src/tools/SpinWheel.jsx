@@ -171,13 +171,13 @@ export default function SpinWheel({ onBack }) {
   return (
     <div className="animate-fade" style={{ maxWidth: '960px', margin: '0 auto', paddingBottom: '60px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-        <button onClick={onBack} className="btn btn-secondary" style={{ padding: '8px 16px' }}>
-          <ChevronLeft size={18} /> Kembali
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', flexWrap: 'wrap', gap: '8px' }}>
+        <button onClick={onBack} className="btn btn-secondary" style={{ padding: '8px 14px', fontSize: '0.82rem' }}>
+          <ChevronLeft size={16} /> Kembali
         </button>
-        <div style={{ textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.4rem', fontWeight: 800 }}>Spin Wheel</h1>
-          <p style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>Roda keberuntungan dan pengambil keputusan acak by fnykids</p>
+        <div style={{ textAlign: 'center', flex: 1, minWidth: '180px' }}>
+          <h1 style={{ fontSize: 'clamp(1.2rem, 4vw, 1.4rem)', fontWeight: 800, margin: 0 }}>Spin Wheel</h1>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted)', margin: '2px 0 0' }}>Roda keberuntungan dan pengambil keputusan acak</p>
         </div>
         <button
           onClick={() => setSoundEnabled(!soundEnabled)}
@@ -189,7 +189,7 @@ export default function SpinWheel({ onBack }) {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '20px', alignItems: 'start' }}>
         {/* Left: Wheel Canvas Visualizer */}
         <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '28px', position: 'relative' }}>
           {/* Top Pointer Arrow */}
