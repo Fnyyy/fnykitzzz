@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   Camera, LayoutGrid, Scissors, Play, Users, Image,
-  QrCode, Utensils, CheckSquare, Code, Calendar,
+  QrCode, Utensils, CheckSquare, Code, Calendar, BookMarked,
   Search, ArrowRight, Zap, Shield, Heart
 } from 'lucide-react';
 
@@ -99,6 +99,15 @@ export default function Home({ onSelectTool }) {
       badge: '⚡ Auto KSM & Notif',
       category: 'Tools',
       gradient: 'linear-gradient(135deg, #1d4ed8, #2563eb)'
+    },
+    {
+      id: 'summarizer',
+      title: 'Ringkas Jurnal & Dokumen',
+      desc: 'Ringkas jurnal ilmiah, skripsi, PDF, paper riset, atau materi kuliah. Ekstrak masalah, metode, hasil & kesimpulan otomatis.',
+      icon: BookMarked,
+      badge: '📑 AI Jurnal',
+      category: 'Tools',
+      gradient: 'linear-gradient(135deg, #0284c7, #2563eb)'
     },
     {
       id: 'encoding',

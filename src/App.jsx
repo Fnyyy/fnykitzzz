@@ -11,6 +11,7 @@ import QrStudio from './tools/QrStudio';
 import NotesAndTodo from './tools/NotesAndTodo';
 import CollegeSchedule from './tools/CollegeSchedule';
 import EncodingUtility from './tools/EncodingUtility';
+import DocSummarizer from './tools/DocSummarizer';
 
 import {
   Home as HomeIcon, Camera, LayoutGrid, Play, Users, Shield
@@ -38,6 +39,7 @@ export default function App() {
       case 'qr': return <QrStudio {...props} />;
       case 'todo': return <NotesAndTodo {...props} />;
       case 'schedule': return <CollegeSchedule {...props} />;
+      case 'summarizer': return <DocSummarizer {...props} />;
       case 'encoding': return <EncodingUtility {...props} />;
       default: return <Home onSelectTool={setCurrentTool} />;
     }
