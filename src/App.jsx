@@ -12,6 +12,7 @@ import NotesAndTodo from './tools/NotesAndTodo';
 import CollegeSchedule from './tools/CollegeSchedule';
 import EncodingUtility from './tools/EncodingUtility';
 import DocSummarizer from './tools/DocSummarizer';
+import Logo from './components/Logo';
 
 import {
   Home as HomeIcon, Camera, LayoutGrid, Play, Users, Shield
@@ -60,19 +61,11 @@ export default function App() {
           display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
           <div onClick={goHome}
-            style={{ display: 'flex', alignItems: 'center', gap: '9px', cursor: 'pointer' }}>
-            <div style={{
-              width: '34px', height: '34px', borderRadius: '10px',
-              background: 'linear-gradient(135deg, #1d4ed8, #0ea5e9)',
-              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 900, fontSize: '13px', letterSpacing: '-0.5px',
-              boxShadow: '0 2px 10px rgba(37, 99, 235, 0.3)'
-            }}>
-              fk
-            </div>
-            <span style={{ fontWeight: 900, fontSize: '1.08rem', letterSpacing: '-0.4px', color: 'var(--ink)' }}>
-              fnykids
-            </span>
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', transition: 'transform 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <Logo size={32} showText={true} />
           </div>
 
           <div style={{

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import {
   Camera, LayoutGrid, Scissors, Play, Users, Image,
   QrCode, Utensils, CheckSquare, Code, Calendar, BookMarked,
-  Search, ArrowRight, Zap, Shield, Heart
+  Search, ArrowRight, Zap, Shield, Heart, Sparkles
 } from 'lucide-react';
+import Logo from '../components/Logo';
 
 export default function Home({ onSelectTool }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -134,48 +135,70 @@ export default function Home({ onSelectTool }) {
   return (
     <div className="animate-fade" style={{ maxWidth: '1060px', margin: '0 auto', paddingBottom: '100px' }}>
       {/* Hero */}
-      <div style={{ textAlign: 'center', padding: '44px 20px 28px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        {/* Badge */}
+      <div style={{ textAlign: 'center', padding: '48px 20px 32px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        
+        {/* Glowing Brand Emblem & Logo */}
+        <div style={{ marginBottom: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+          {/* Subtle decorative glow ring */}
+          <div style={{
+            position: 'absolute', width: '130px', height: '130px',
+            borderRadius: '50%', background: 'radial-gradient(circle, rgba(37,99,235,0.25) 0%, rgba(14,165,233,0.12) 50%, transparent 70%)',
+            filter: 'blur(16px)', zIndex: 0, top: '-25px'
+          }} />
+
+          {/* Logo Component */}
+          <div style={{ position: 'relative', zIndex: 1, transform: 'scale(1.05)', transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+            <Logo size={70} />
+          </div>
+        </div>
+
+        {/* Security & Local Badge */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: '6px',
-          background: 'var(--purple-light)', color: 'var(--purple)',
-          padding: '6px 16px', borderRadius: 'var(--radius-full)',
-          fontSize: '0.82rem', fontWeight: 700, marginBottom: '18px',
-          border: '1px solid #bfdbfe'
+          background: 'linear-gradient(135deg, rgba(239,246,255,0.9), rgba(224,242,254,0.9))',
+          color: 'var(--blue)', padding: '6px 16px', borderRadius: 'var(--radius-full)',
+          fontSize: '0.82rem', fontWeight: 700, marginBottom: '14px',
+          border: '1px solid #bfdbfe', boxShadow: '0 2px 10px rgba(37,99,235,0.08)',
+          position: 'relative', zIndex: 1
         }}>
-          <Shield size={15} /> 100% Offline & Lokal — Data Aman
+          <Shield size={14} /> 100% Offline & Lokal — Data Aman Tanpa Server
         </div>
 
         {/* Title */}
         <h1 style={{
-          fontSize: '2.8rem', fontWeight: 900, letterSpacing: '-1px',
-          marginBottom: '8px',
-          background: 'linear-gradient(135deg, #1d4ed8, #0ea5e9)',
+          fontSize: '3rem', fontWeight: 900, letterSpacing: '-1.2px',
+          marginBottom: '8px', lineHeight: 1.1,
+          background: 'linear-gradient(135deg, #1d4ed8 0%, #0284c7 100%)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text'
+          backgroundClip: 'text', position: 'relative', zIndex: 1
         }}>
           fnykids
         </h1>
-        <p style={{ fontSize: '1.05rem', color: 'var(--muted)', maxWidth: '520px', lineHeight: 1.5 }}>
-          Tools seru untuk foto, kolase, spin wheel, kelompok & produktivitas.
-          <br />Semuanya lokal di browser — tanpa upload, tanpa server.
+
+        <p style={{ fontSize: '1.05rem', color: 'var(--muted)', maxWidth: '540px', lineHeight: 1.55, position: 'relative', zIndex: 1 }}>
+          Tools seru untuk foto, kolase, spin wheel, kelompok, jadwal kuliah & ringkas jurnal.
+          <br />Semuanya berjalan lokal di browsermu — aman, privat, & tanpa kuota server.
         </p>
 
         {/* Search */}
-        <div style={{ width: '100%', maxWidth: '460px', marginTop: '22px', position: 'relative' }}>
+        <div style={{ width: '100%', maxWidth: '480px', marginTop: '24px', position: 'relative', zIndex: 1 }}>
           <Search size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)' }} />
           <input
             type="text"
-            placeholder="Cari tools..."
+            placeholder="Cari tools (misal: jurnal, ksm, photobooth, hapus background)..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="input-field"
-            style={{ paddingLeft: '44px', borderRadius: 'var(--radius-full)', background: '#fff', boxShadow: 'var(--shadow-sm)' }}
+            style={{
+              paddingLeft: '44px', borderRadius: 'var(--radius-full)',
+              background: '#ffffff', boxShadow: '0 4px 18px rgba(15,23,42,0.06)',
+              border: '1px solid var(--line)'
+            }}
           />
         </div>
 
         {/* Category Pills */}
-        <div style={{ display: 'flex', gap: '8px', marginTop: '18px' }}>
+        <div style={{ display: 'flex', gap: '8px', marginTop: '18px', flexWrap: 'wrap', justifyContent: 'center', position: 'relative', zIndex: 1 }}>
           {categories.map(cat => (
             <button
               key={cat}

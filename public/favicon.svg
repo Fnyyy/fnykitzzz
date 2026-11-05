@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="fkBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb" />
+      <stop offset="50%" stop-color="#1d4ed8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="fkAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f5ff" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+  </defs>
+  <!-- Rounded Squircle -->
+  <rect x="4" y="4" width="92" height="92" rx="26" fill="url(#fkBg)" />
+  <rect x="4" y="4" width="92" height="92" rx="26" stroke="rgba(255,255,255,0.25)" stroke-width="2" fill="none" />
+  
+  <!-- Stylized F Stem -->
+  <rect x="23" y="24" width="12" height="52" rx="6" fill="#ffffff" />
+  <!-- F Top Bar -->
+  <path d="M29 24 L56 24 C59.5 24 62 26.5 62 30 C62 33.5 59.5 36 56 36 L29 36 Z" fill="#ffffff" />
+  <!-- F Middle Bar (Cyan Accent) -->
+  <path d="M29 44 L48 44 C51 44 53 46 53 49 C53 52 51 54 48 54 L29 54 Z" fill="url(#fkAccent)" />
+  
+  <!-- Dynamic K Branches -->
+  <path d="M47 43 L68 25 C70.5 22.8 74.5 24.5 74.5 28 C74.5 29.8 73.5 31.5 72 32.8 L57 46.5 L73.5 67 C75.5 69.5 74.5 73.5 71.5 74.5 C69.5 75 67.5 74 66 72 L47 51 Z" fill="#ffffff" />
+  
+  <!-- Sparkling Star Top-Right -->
+  <path d="M78 13 C78 17 80 19 84 19 C80 19 78 21 78 25 C78 21 76 19 72 19 C76 19 78 17 78 13 Z" fill="#00f5ff" />
+</svg>
