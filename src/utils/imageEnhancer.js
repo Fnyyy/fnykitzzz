@@ -104,3 +104,4 @@ export async function upscaleImageToHD(imageSrc, options = {}) {
     img.src = imageSrc;
   });
 }
+

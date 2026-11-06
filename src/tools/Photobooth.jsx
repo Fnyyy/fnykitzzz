@@ -6,7 +6,7 @@ import {
   Maximize2, Shield
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { enhanceImageData } from '../utils/imageEnhancer';
+import { enhanceImageData, upscaleImageToHD } from '../utils/imageEnhancer';
 
 // ═══════════════ TEMPLATES COLLECTION ═══════════════
 const TEMPLATES = [
@@ -200,6 +200,7 @@ export default function Photobooth({ onBack }) {
   const [isAiHd, setIsAiHd] = useState(true); // AI HD Enhancer Active by Default!
   const [previewDataUrl, setPreviewDataUrl] = useState(null);
   const [isRendering, setIsRendering] = useState(false);
+  const [isUpscaling, setIsUpscaling] = useState(false);
 
   // Camera Settings
   const [cameraActive, setCameraActive] = useState(false);
@@ -214,6 +215,14 @@ export default function Photobooth({ onBack }) {
   const streamRef = useRef(null);
   const stripCanvasRef = useRef(null);
   const fileInputRef = useRef(null);
+  const photosRef = useRef([]); // Authoritative ref to prevent ANY stale closure bugs!
+  const isBurstActiveRef = useRef(false);
+  const burstTimerRef = useRef(null);
+
+  // Keep photosRef synced
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
 
   const targetCount = selectedTemplate.photoCount;
 
@@ -277,8 +286,10 @@ export default function Photobooth({ onBack }) {
   // When changing template, reset photos if photoCount doesn't match
   const handleSelectTemplate = (tpl) => {
     setSelectedTemplate(tpl);
-    if (photos.length > tpl.photoCount) {
-      setPhotos(photos.slice(0, tpl.photoCount));
+    if (photosRef.current.length > tpl.photoCount) {
+      const sliced = photosRef.current.slice(0, tpl.photoCount);
+      photosRef.current = sliced;
+      setPhotos(sliced);
     }
     setPreviewDataUrl(null);
     setCurrentView('camera');
@@ -286,13 +297,17 @@ export default function Photobooth({ onBack }) {
 
   // Capture Single Photo with Optional AI HD Enhancement
   const takeSinglePhoto = () => {
-    if (!videoRef.current || photos.length >= targetCount) return;
+    if (!videoRef.current || photosRef.current.length >= targetCount) return;
     const video = videoRef.current;
     
-    // High-resolution capture canvas
+    // High-resolution capture canvas with robust dimension fallback
+    const vw = video.videoWidth || video.clientWidth || 1280;
+    const vh = video.videoHeight || video.clientHeight || 720;
+    if (vw === 0 || vh === 0) return;
+
     const rawCanvas = document.createElement('canvas');
-    rawCanvas.width = video.videoWidth || 1280;
-    rawCanvas.height = video.videoHeight || 720;
+    rawCanvas.width = vw;
+    rawCanvas.height = vh;
     const ctx = rawCanvas.getContext('2d', { willReadFrequently: true });
 
     if (mirror && facingMode === 'user') {
@@ -309,28 +324,34 @@ export default function Photobooth({ onBack }) {
     let processedCanvas = rawCanvas;
     // Apply AI HD Enhancement
     if (isAiHd) {
-      processedCanvas = enhanceImageData(rawCanvas, {
-        scale: 1.5,
-        sharpness: 0.65,
-        contrast: 1.14,
-        vibrancy: 1.18
-      });
+      try {
+        processedCanvas = enhanceImageData(rawCanvas, {
+          scale: 1.5,
+          sharpness: 0.65,
+          contrast: 1.14,
+          vibrancy: 1.18
+        });
+      } catch (err) {
+        console.warn('AI HD enhancement fallback:', err);
+        processedCanvas = rawCanvas;
+      }
     }
 
     const dataUrl = processedCanvas.toDataURL('image/jpeg', 0.96);
-    const updated = [...photos, dataUrl];
+    const updated = [...photosRef.current, dataUrl];
+    photosRef.current = updated;
     setPhotos(updated);
 
-    if (updated.length === targetCount) {
-      confetti({ particleCount: 50, spread: 60 });
+    if (updated.length >= targetCount) {
+      confetti({ particleCount: 60, spread: 70 });
       // Render immediately with full updated array
       generateAndSetPreview(updated, selectedTemplate);
     }
   };
 
-  // Auto Countdown Trigger
+  // Auto Countdown Trigger (Single Shot)
   const handleTriggerShutter = () => {
-    if (countdown !== null || photos.length >= targetCount) return;
+    if (countdown !== null || photosRef.current.length >= targetCount) return;
 
     if (delaySec === 0) {
       takeSinglePhoto();
@@ -351,15 +372,52 @@ export default function Photobooth({ onBack }) {
     }, 1000);
   };
 
+  // Continuous Auto Photobox Session (Snaps all remaining slots continuously!)
+  const handleStartBurstSession = () => {
+    if (countdown !== null || photosRef.current.length >= targetCount) return;
+    isBurstActiveRef.current = true;
+
+    const runNextBurst = () => {
+      if (!isBurstActiveRef.current || photosRef.current.length >= targetCount) {
+        isBurstActiveRef.current = false;
+        return;
+      }
+
+      const timerDuration = delaySec || 3;
+      setCountdown(timerDuration);
+      let count = timerDuration;
+
+      const countdownTimer = setInterval(() => {
+        count -= 1;
+        if (count > 0) {
+          setCountdown(count);
+        } else {
+          clearInterval(countdownTimer);
+          setCountdown(null);
+          takeSinglePhoto();
+
+          // If still need more photos, trigger next shot after 1.2s pose pause
+          if (photosRef.current.length < targetCount && isBurstActiveRef.current) {
+            burstTimerRef.current = setTimeout(runNextBurst, 1200);
+          } else {
+            isBurstActiveRef.current = false;
+          }
+        }
+      }, 1000);
+    };
+
+    runNextBurst();
+  };
+
   // File Upload Fallback
   const handleFileUpload = (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const remaining = targetCount - photos.length;
+    const remaining = targetCount - photosRef.current.length;
     const selectedFiles = files.slice(0, remaining);
 
-    let newPhotos = [...photos];
+    let newPhotos = [...photosRef.current];
     let loaded = 0;
 
     selectedFiles.forEach(file => {
@@ -368,8 +426,9 @@ export default function Photobooth({ onBack }) {
         newPhotos.push(evt.target.result);
         loaded++;
         if (loaded === selectedFiles.length) {
+          photosRef.current = newPhotos;
           setPhotos(newPhotos);
-          if (newPhotos.length === targetCount) {
+          if (newPhotos.length >= targetCount) {
             generateAndSetPreview(newPhotos, selectedTemplate);
           }
         }
@@ -383,7 +442,7 @@ export default function Photobooth({ onBack }) {
   // ═══════════════ CANVAS RENDERER FOR TEMPLATES ═══════════════
   const generateAndSetPreview = async (photoList, tpl) => {
     setIsRendering(true);
-    const photosToRender = photoList || photos;
+    const photosToRender = (photoList && photoList.length) ? photoList : photosRef.current;
     const activeTpl = tpl || selectedTemplate;
 
     try {
@@ -399,185 +458,212 @@ export default function Photobooth({ onBack }) {
     }
   };
 
-  const renderCanvasPromise = (photosToRender, tpl) => {
-    return new Promise((resolve) => {
-      const isGrid6 = tpl.layout === 'grid-6';
-      const canvas = stripCanvasRef.current || document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
+  const renderCanvasPromise = async (photosToRender, tpl) => {
+    const isGrid6 = tpl.layout === 'grid-6';
+    // Always use independent off-screen canvas to prevent any race condition/flicker
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
-      const canvasWidth = isGrid6 ? 840 : 480;
-      const photoWidth = isGrid6 ? 360 : 410;
-      const photoHeight = isGrid6 ? 320 : 300;
-      const gap = 16;
-      const topPadding = 90;
-      const bottomPadding = 240; // Generous bottom padding so Photo 3 is NEVER blocked by waves or text!
+    const canvasWidth = isGrid6 ? 840 : 480;
+    const photoWidth = isGrid6 ? 360 : 410;
+    const photoHeight = isGrid6 ? 320 : 300;
+    const gap = 16;
+    const topPadding = 90;
+    const bottomPadding = 240;
 
-      const numRows = isGrid6 ? 3 : photosToRender.length;
-      const totalHeight = topPadding + (numRows * photoHeight) + ((numRows - 1) * gap) + bottomPadding;
+    const targetSlots = isGrid6 ? 6 : tpl.photoCount;
+    const numRows = isGrid6 ? 3 : targetSlots;
+    const totalHeight = topPadding + (numRows * photoHeight) + ((numRows - 1) * gap) + bottomPadding;
 
-      canvas.width = canvasWidth;
-      canvas.height = totalHeight;
+    canvas.width = canvasWidth;
+    canvas.height = totalHeight;
 
-      // 1. DRAW BACKGROUND & ORGANIC BLOBS
-      if (tpl.theme.style === 'lany-blue' || tpl.theme.style === 'lany-blue-grid') {
-        // Cobalt Blue Base
-        ctx.fillStyle = tpl.theme.bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // 1. DRAW BACKGROUND & ORGANIC BLOBS
+    if (tpl.theme.style === 'lany-blue' || tpl.theme.style === 'lany-blue-grid') {
+      // Cobalt Blue Base
+      ctx.fillStyle = tpl.theme.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Deep Black Organic Waves (matching LANY album aesthetic)
-        ctx.fillStyle = tpl.theme.secondary;
-        
-        // Top wave
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(canvas.width, 0);
-        ctx.lineTo(canvas.width, 85);
-        ctx.bezierCurveTo(canvas.width * 0.7, 110, canvas.width * 0.3, 50, 0, 95);
-        ctx.closePath();
-        ctx.fill();
+      // Deep Black Organic Waves (matching LANY album aesthetic)
+      ctx.fillStyle = tpl.theme.secondary;
+      
+      // Top wave
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(canvas.width, 0);
+      ctx.lineTo(canvas.width, 85);
+      ctx.bezierCurveTo(canvas.width * 0.7, 110, canvas.width * 0.3, 50, 0, 95);
+      ctx.closePath();
+      ctx.fill();
 
-        // Middle organic cutout (left side)
-        ctx.beginPath();
-        ctx.moveTo(0, canvas.height * 0.32);
-        ctx.bezierCurveTo(70, canvas.height * 0.36, 75, canvas.height * 0.46, 0, canvas.height * 0.50);
-        ctx.closePath();
-        ctx.fill();
+      // Middle organic cutout (left side)
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height * 0.32);
+      ctx.bezierCurveTo(70, canvas.height * 0.36, 75, canvas.height * 0.46, 0, canvas.height * 0.50);
+      ctx.closePath();
+      ctx.fill();
 
-        // Bottom organic black wave (Starts well below Photo #3!)
-        ctx.beginPath();
-        const waveStartY = totalHeight - 190;
-        ctx.moveTo(0, waveStartY);
-        ctx.bezierCurveTo(canvas.width * 0.3, waveStartY - 30, canvas.width * 0.7, waveStartY + 30, canvas.width, waveStartY - 10);
-        ctx.lineTo(canvas.width, canvas.height);
-        ctx.lineTo(0, canvas.height);
-        ctx.closePath();
-        ctx.fill();
+      // Bottom organic black wave (Starts well below Photo #3!)
+      ctx.beginPath();
+      const waveStartY = totalHeight - 190;
+      ctx.moveTo(0, waveStartY);
+      ctx.bezierCurveTo(canvas.width * 0.3, waveStartY - 30, canvas.width * 0.7, waveStartY + 30, canvas.width, waveStartY - 10);
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      ctx.fill();
 
-      } else if (tpl.theme.style === 'lany-sky') {
-        ctx.fillStyle = tpl.theme.bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+    } else if (tpl.theme.style === 'lany-sky') {
+      ctx.fillStyle = tpl.theme.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = 'rgba(2, 132, 199, 0.08)';
-        for (let x = 15; x < canvas.width; x += 25) {
-          for (let y = 15; y < canvas.height; y += 25) {
-            ctx.beginPath();
-            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
+      ctx.fillStyle = 'rgba(2, 132, 199, 0.08)';
+      for (let x = 15; x < canvas.width; x += 25) {
+        for (let y = 15; y < canvas.height; y += 25) {
+          ctx.beginPath();
+          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
         }
-      } else if (tpl.theme.style === 'lany-vintage') {
-        ctx.fillStyle = tpl.theme.bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = tpl.theme.secondary;
-        ctx.beginPath();
-        const waveStartY = totalHeight - 160;
-        ctx.moveTo(0, waveStartY);
-        ctx.bezierCurveTo(120, waveStartY - 25, 280, waveStartY + 20, canvas.width, waveStartY - 10);
-        ctx.lineTo(canvas.width, canvas.height);
-        ctx.lineTo(0, canvas.height);
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        ctx.fillStyle = tpl.theme.bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
+    } else if (tpl.theme.style === 'lany-vintage') {
+      ctx.fillStyle = tpl.theme.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // 2. HEADER GRAPHICS & BRANDING
-      ctx.textAlign = 'center';
-      if (tpl.category === 'LANY') {
-        ctx.font = '900 24px "Plus Jakarta Sans", sans-serif';
-        ctx.letterSpacing = '6px';
-        ctx.fillStyle = tpl.theme.textMain;
-        ctx.fillText('L A N Y', canvas.width / 2, 48);
+      ctx.fillStyle = tpl.theme.secondary;
+      ctx.beginPath();
+      const waveStartY = totalHeight - 160;
+      ctx.moveTo(0, waveStartY);
+      ctx.bezierCurveTo(120, waveStartY - 25, 280, waveStartY + 20, canvas.width, waveStartY - 10);
+      ctx.lineTo(canvas.width, canvas.height);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = tpl.theme.bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
 
-        ctx.font = '700 11px monospace';
-        ctx.letterSpacing = '3px';
-        ctx.fillStyle = tpl.theme.accent;
-        ctx.fillText('• DOUBLE-XL PHOTO VAULT •', canvas.width / 2, 68);
-      } else {
-        ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
-        ctx.letterSpacing = '4px';
-        ctx.fillStyle = tpl.theme.textMain;
-        ctx.fillText(tpl.theme.lyricsTop, canvas.width / 2, 52);
-      }
+    // 2. HEADER GRAPHICS & BRANDING
+    ctx.textAlign = 'center';
+    if (tpl.category === 'LANY') {
+      ctx.font = '900 24px "Plus Jakarta Sans", sans-serif';
+      ctx.letterSpacing = '6px';
+      ctx.fillStyle = tpl.theme.textMain;
+      ctx.fillText('L A N Y', canvas.width / 2, 48);
 
-      // 3. RENDER PHOTOS WITH ROUNDED FRAMES
-      const imagePromises = photosToRender.map(src => {
-        return new Promise((res) => {
+      ctx.font = '700 11px monospace';
+      ctx.letterSpacing = '3px';
+      ctx.fillStyle = tpl.theme.accent;
+      ctx.fillText('• DOUBLE-XL PHOTO VAULT •', canvas.width / 2, 68);
+    } else {
+      ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
+      ctx.letterSpacing = '4px';
+      ctx.fillStyle = tpl.theme.textMain;
+      ctx.fillText(tpl.theme.lyricsTop, canvas.width / 2, 52);
+    }
+
+    // 3. LOAD ALL TARGET IMAGES SAFELY (No CORS taint on data/blob URIs!)
+    const imageList = await Promise.all(
+      Array.from({ length: targetSlots }).map(async (_, idx) => {
+        const src = photosToRender[idx];
+        if (!src) return null;
+        return new Promise((resolve) => {
           const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => res(img);
-          img.onerror = () => res(null);
+          if (!src.startsWith('data:') && !src.startsWith('blob:')) {
+            img.crossOrigin = 'anonymous';
+          }
+          img.onload = () => resolve(img);
+          img.onerror = (e) => {
+            console.error('Image load failed for index', idx, e);
+            resolve(null);
+          };
           img.src = src;
         });
-      });
+      })
+    );
 
-      Promise.all(imagePromises).then(images => {
-        let currentY = topPadding;
+    // 4. RENDER PHOTOS WITH ROUNDED FRAMES & CLEAN SOLID WHITE CARD BACKING
+    let currentY = topPadding;
 
-        if (isGrid6) {
-          images.forEach((img, idx) => {
-            if (!img) return;
-            const col = idx % 2;
-            const row = Math.floor(idx / 2);
-            const x = 35 + col * (photoWidth + 30);
-            const y = topPadding + row * (photoHeight + gap);
+    if (isGrid6) {
+      for (let idx = 0; idx < 6; idx++) {
+        const col = idx % 2;
+        const row = Math.floor(idx / 2);
+        const x = 35 + col * (photoWidth + 30);
+        const y = topPadding + row * (photoHeight + gap);
 
-            drawRoundedPhotoCard(ctx, img, x, y, photoWidth, photoHeight, 20);
-          });
-          currentY = topPadding + (3 * photoHeight) + (2 * gap);
-        } else {
-          images.forEach((img, idx) => {
-            if (!img) return;
-            const x = (canvasWidth - photoWidth) / 2;
-            drawRoundedPhotoCard(ctx, img, x, currentY, photoWidth, photoHeight, 18);
-            currentY += photoHeight + gap;
-          });
-        }
+        drawRoundedPhotoCard(ctx, imageList[idx], x, y, photoWidth, photoHeight, 20, idx + 1);
+      }
+      currentY = topPadding + (3 * photoHeight) + (2 * gap);
+    } else {
+      for (let idx = 0; idx < targetSlots; idx++) {
+        const x = (canvasWidth - photoWidth) / 2;
+        drawRoundedPhotoCard(ctx, imageList[idx], x, currentY, photoWidth, photoHeight, 18, idx + 1);
+        currentY += photoHeight + gap;
+      }
+    }
 
-        // 4. DRAW DECORATIVE SLOGANS & STICKERS (Cleanly positioned in bottom margin)
-        drawTemplateOverlays(ctx, canvas, tpl, currentY);
+    // 5. DRAW DECORATIVE SLOGANS & STICKERS (Cleanly positioned in bottom margin)
+    drawTemplateOverlays(ctx, canvas, tpl, currentY);
 
-        resolve(canvas);
-      });
-    });
+    return canvas;
   };
 
-  // Helper: Draw photo card with rounded corners and clean white border
-  const drawRoundedPhotoCard = (ctx, img, x, y, w, h, radius) => {
+  // Helper: Draw photo card with rounded corners, solid white backing, and inner image
+  const drawRoundedPhotoCard = (ctx, img, x, y, w, h, radius, slotIndex) => {
     ctx.save();
 
-    // White Card Background & Outline
+    // 1. White Outer Card / Border (5px margin)
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.roundRect(x - 5, y - 5, w + 10, h + 10, radius + 2);
     ctx.fill();
 
-    // Subtle Drop Shadow
+    // 2. Subtle Drop Shadow
     ctx.shadowColor = 'rgba(0,0,0,0.22)';
     ctx.shadowBlur = 12;
     ctx.shadowOffsetY = 4;
 
-    // Clip to rounded photo inner
+    // 3. Inner Card Fill - Clean White/Off-white Backing
+    // CRITICAL: This guarantees the inside is NEVER transparent or showing raw blue background!
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.roundRect(x, y, w, h, radius);
-    ctx.clip();
+    ctx.fill();
 
-    // Draw Image (Cover Crop)
-    const imgRatio = img.width / img.height;
-    const targetRatio = w / h;
-    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+    // 4. Draw Image (Cover Crop)
+    if (img && img.width > 0 && img.height > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, radius);
+      ctx.clip();
 
-    if (imgRatio > targetRatio) {
-      sw = img.height * targetRatio;
-      sx = (img.width - sw) / 2;
+      const imgRatio = img.width / img.height;
+      const targetRatio = w / h;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+
+      if (imgRatio > targetRatio) {
+        sw = img.height * targetRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / targetRatio;
+        sy = (img.height - sh) / 2;
+      }
+
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
+      ctx.restore();
     } else {
-      sh = img.width / targetRatio;
-      sy = (img.height - sh) / 2;
+      // Clean placeholder if photo was missing or not yet captured
+      ctx.fillStyle = '#f1f5f9';
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, radius);
+      ctx.fill();
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '700 13px "Plus Jakarta Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Foto ${slotIndex || ''}`, x + w / 2, y + h / 2);
     }
 
-    ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h);
     ctx.restore();
   };
 
@@ -675,15 +761,38 @@ export default function Photobooth({ onBack }) {
 
   // Download Trigger
   const handleDownloadStrip = async () => {
-    if (photos.length === 0) return;
-    const canvas = await renderCanvasPromise(photos, selectedTemplate);
-    if (!canvas) return;
+    const dataToDownload = previewDataUrl || (await (async () => {
+      const c = await renderCanvasPromise(photosRef.current, selectedTemplate);
+      return c ? c.toDataURL('image/png', 0.96) : null;
+    })());
+
+    if (!dataToDownload) return;
 
     const link = document.createElement('a');
     link.download = `fnykids-${selectedTemplate.id}-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png', 0.96);
+    link.href = dataToDownload;
     link.click();
     confetti({ particleCount: 70, spread: 80 });
+  };
+
+  // AI 4K Ultra HD Upscaling for the entire finished strip
+  const handleUpscaleStrip = async () => {
+    if (!previewDataUrl || isUpscaling) return;
+    setIsUpscaling(true);
+    try {
+      const upscaled = await upscaleImageToHD(previewDataUrl, {
+        scale: 1.8,
+        sharpness: 0.68,
+        contrast: 1.08,
+        vibrancy: 1.12
+      });
+      setPreviewDataUrl(upscaled);
+      confetti({ particleCount: 80, spread: 90 });
+    } catch (err) {
+      console.error('Upscaling error:', err);
+    } finally {
+      setIsUpscaling(false);
+    }
   };
 
   // Filter templates
@@ -1117,13 +1226,29 @@ export default function Photobooth({ onBack }) {
                   disabled={countdown !== null || photos.length >= targetCount}
                   className="btn btn-primary"
                   style={{
-                    padding: '12px 30px', fontSize: '1rem', fontWeight: 900,
+                    padding: '12px 26px', fontSize: '0.96rem', fontWeight: 900,
                     borderRadius: 'var(--radius-full)',
                     background: 'linear-gradient(135deg, #1d4ed8, #0ea5e9)',
                     boxShadow: '0 4px 18px rgba(37,99,235,0.4)'
                   }}
                 >
-                  <Camera size={20} /> Jepret ({photos.length}/{targetCount})
+                  <Camera size={19} /> Jepret ({photos.length}/{targetCount})
+                </button>
+
+                {/* Continuous Burst / Photobox Session Trigger */}
+                <button
+                  onClick={handleStartBurstSession}
+                  disabled={countdown !== null || photos.length >= targetCount}
+                  className="btn btn-secondary"
+                  style={{
+                    padding: '12px 18px', fontSize: '0.86rem', fontWeight: 800,
+                    borderRadius: 'var(--radius-full)',
+                    border: '1.5px solid var(--purple)',
+                    color: 'var(--purple)'
+                  }}
+                  title="Ambil semua sisa foto secara otomatis beruntun dengan timer"
+                >
+                  <Zap size={16} /> Otomatis {targetCount}× Foto
                 </button>
 
                 <button onClick={stopCamera} className="btn btn-secondary" style={{ color: '#ef4444' }}>
@@ -1234,6 +1359,18 @@ export default function Photobooth({ onBack }) {
               style={{ padding: '10px 18px', fontSize: '0.84rem' }}
             >
               <LayoutGrid size={16} /> Ganti Frame Lain
+            </button>
+            <button
+              onClick={handleUpscaleStrip}
+              disabled={isUpscaling}
+              className="btn btn-secondary"
+              style={{
+                padding: '10px 18px', fontSize: '0.84rem', fontWeight: 800,
+                border: '1.5px solid #38bdf8', color: '#0284c7', background: '#f0f9ff'
+              }}
+              title="Tingkatkan resolusi hasil photobooth menjadi 4K Ultra HD"
+            >
+              <Sparkles size={16} /> {isUpscaling ? 'Memproses 4K...' : 'Tingkatkan ke 4K Ultra HD'}
             </button>
             <button
               onClick={handleDownloadStrip}
