@@ -48,6 +48,15 @@ export default function Home({ onSelectTool }) {
       gradient: 'linear-gradient(135deg, #0ea5e9, #38bdf8)'
     },
     {
+      id: 'hd',
+      title: 'AI HD Enhancer (Foto & Video)',
+      desc: 'Tingkatkan resolusi foto & video hingga 4K Ultra HD. Pertajam wajah, mata, detail objek & pencahayaan.',
+      icon: Sparkles,
+      badge: '✨ AI Super-Res',
+      category: 'Kreatif',
+      gradient: 'linear-gradient(135deg, #1d4ed8, #0ea5e9)'
+    },
+    {
       id: 'wheel',
       title: 'Spin Wheel',
       desc: 'Roda keberuntungan acak dengan suara putar, deselerasi fisik & confetti.',

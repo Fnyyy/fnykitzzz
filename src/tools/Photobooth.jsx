@@ -2,9 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Camera, RefreshCw, Download, Image as ImageIcon, Sparkles,
   Check, ChevronLeft, Trash2, Sliders, LayoutGrid, Heart,
-  FlipHorizontal, Clock, Star, ArrowRight, Eye, Undo2
+  FlipHorizontal, Clock, Star, ArrowRight, Eye, Undo2, Zap,
+  Maximize2, Shield
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { enhanceImageData } from '../utils/imageEnhancer';
 
 // ═══════════════ TEMPLATES COLLECTION ═══════════════
 const TEMPLATES = [
@@ -195,10 +197,13 @@ export default function Photobooth({ onBack }) {
   // Photo state
   const [photos, setPhotos] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState(FILTERS[0]);
+  const [isAiHd, setIsAiHd] = useState(true); // AI HD Enhancer Active by Default!
+  const [previewDataUrl, setPreviewDataUrl] = useState(null);
+  const [isRendering, setIsRendering] = useState(false);
 
-  // Camera Settings (Jepreto-style)
+  // Camera Settings
   const [cameraActive, setCameraActive] = useState(false);
-  const [delaySec, setDelaySec] = useState(3); // 1, 3, 5
+  const [delaySec, setDelaySec] = useState(3);
   const [mirror, setMirror] = useState(true);
   const [facingMode, setFacingMode] = useState('user');
   const [countdown, setCountdown] = useState(null);
@@ -224,7 +229,7 @@ export default function Photobooth({ onBack }) {
       let stream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: targetFacing, width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: { facingMode: targetFacing, width: { ideal: 1920, min: 1280 }, height: { ideal: 1080, min: 720 } },
           audio: false
         });
       } catch (e) {
@@ -275,20 +280,23 @@ export default function Photobooth({ onBack }) {
     if (photos.length > tpl.photoCount) {
       setPhotos(photos.slice(0, tpl.photoCount));
     }
+    setPreviewDataUrl(null);
     setCurrentView('camera');
   };
 
-  // Capture Single Photo
+  // Capture Single Photo with Optional AI HD Enhancement
   const takeSinglePhoto = () => {
     if (!videoRef.current || photos.length >= targetCount) return;
     const video = videoRef.current;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    const ctx = canvas.getContext('2d');
+    
+    // High-resolution capture canvas
+    const rawCanvas = document.createElement('canvas');
+    rawCanvas.width = video.videoWidth || 1280;
+    rawCanvas.height = video.videoHeight || 720;
+    const ctx = rawCanvas.getContext('2d', { willReadFrequently: true });
 
     if (mirror && facingMode === 'user') {
-      ctx.translate(canvas.width, 0);
+      ctx.translate(rawCanvas.width, 0);
       ctx.scale(-1, 1);
     }
 
@@ -296,14 +304,27 @@ export default function Photobooth({ onBack }) {
       ctx.filter = selectedFilter.css;
     }
 
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+    ctx.drawImage(video, 0, 0, rawCanvas.width, rawCanvas.height);
+
+    let processedCanvas = rawCanvas;
+    // Apply AI HD Enhancement
+    if (isAiHd) {
+      processedCanvas = enhanceImageData(rawCanvas, {
+        scale: 1.5,
+        sharpness: 0.65,
+        contrast: 1.14,
+        vibrancy: 1.18
+      });
+    }
+
+    const dataUrl = processedCanvas.toDataURL('image/jpeg', 0.96);
     const updated = [...photos, dataUrl];
     setPhotos(updated);
 
     if (updated.length === targetCount) {
       confetti({ particleCount: 50, spread: 60 });
-      setTimeout(() => setCurrentView('preview'), 600);
+      // Render immediately with full updated array
+      generateAndSetPreview(updated, selectedTemplate);
     }
   };
 
@@ -338,17 +359,20 @@ export default function Photobooth({ onBack }) {
     const remaining = targetCount - photos.length;
     const selectedFiles = files.slice(0, remaining);
 
+    let newPhotos = [...photos];
+    let loaded = 0;
+
     selectedFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        setPhotos(prev => {
-          if (prev.length >= targetCount) return prev;
-          const updated = [...prev, evt.target.result];
-          if (updated.length === targetCount) {
-            setTimeout(() => setCurrentView('preview'), 500);
+        newPhotos.push(evt.target.result);
+        loaded++;
+        if (loaded === selectedFiles.length) {
+          setPhotos(newPhotos);
+          if (newPhotos.length === targetCount) {
+            generateAndSetPreview(newPhotos, selectedTemplate);
           }
-          return updated;
-        });
+        }
       };
       reader.readAsDataURL(file);
     });
@@ -357,163 +381,181 @@ export default function Photobooth({ onBack }) {
   };
 
   // ═══════════════ CANVAS RENDERER FOR TEMPLATES ═══════════════
-  const renderStripToCanvas = () => {
-    const canvas = stripCanvasRef.current;
-    if (!canvas || photos.length === 0) return null;
-    const ctx = canvas.getContext('2d');
-    const tpl = selectedTemplate;
-    const isGrid6 = tpl.layout === 'grid-6';
+  const generateAndSetPreview = async (photoList, tpl) => {
+    setIsRendering(true);
+    const photosToRender = photoList || photos;
+    const activeTpl = tpl || selectedTemplate;
 
-    const canvasWidth = isGrid6 ? 840 : 480;
-    const photoWidth = isGrid6 ? 360 : 410;
-    const photoHeight = isGrid6 ? 340 : 320;
-    const gap = isGrid6 ? 20 : 18;
-    const topPadding = 110;
-    const bottomPadding = 150;
+    try {
+      const canvas = await renderCanvasPromise(photosToRender, activeTpl);
+      if (canvas) {
+        setPreviewDataUrl(canvas.toDataURL('image/png', 0.96));
+        setCurrentView('preview');
+      }
+    } catch (err) {
+      console.error('Render error:', err);
+    } finally {
+      setIsRendering(false);
+    }
+  };
 
-    const totalHeight = isGrid6
-      ? topPadding + (photoHeight * 3) + (gap * 2) + bottomPadding
-      : topPadding + (photos.length * photoHeight) + ((photos.length - 1) * gap) + bottomPadding;
+  const renderCanvasPromise = (photosToRender, tpl) => {
+    return new Promise((resolve) => {
+      const isGrid6 = tpl.layout === 'grid-6';
+      const canvas = stripCanvasRef.current || document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
 
-    canvas.width = canvasWidth;
-    canvas.height = totalHeight;
+      const canvasWidth = isGrid6 ? 840 : 480;
+      const photoWidth = isGrid6 ? 360 : 410;
+      const photoHeight = isGrid6 ? 320 : 300;
+      const gap = 16;
+      const topPadding = 90;
+      const bottomPadding = 240; // Generous bottom padding so Photo 3 is NEVER blocked by waves or text!
 
-    // 1. DRAW BACKGROUND & ORGANIC BLOBS
-    if (tpl.theme.style === 'lany-blue' || tpl.theme.style === 'lany-blue-grid') {
-      // Solid Cobalt Blue Base
-      ctx.fillStyle = tpl.theme.bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const numRows = isGrid6 ? 3 : photosToRender.length;
+      const totalHeight = topPadding + (numRows * photoHeight) + ((numRows - 1) * gap) + bottomPadding;
 
-      // Deep Black Organic Waves (matching LANY album aesthetic)
-      ctx.fillStyle = tpl.theme.secondary;
-      
-      // Top wave
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(canvas.width, 0);
-      ctx.lineTo(canvas.width, 100);
-      ctx.bezierCurveTo(canvas.width * 0.7, 140, canvas.width * 0.3, 60, 0, 110);
-      ctx.closePath();
-      ctx.fill();
+      canvas.width = canvasWidth;
+      canvas.height = totalHeight;
 
-      // Middle wavy cutout (left side)
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height * 0.35);
-      ctx.bezierCurveTo(80, canvas.height * 0.38, 90, canvas.height * 0.52, 0, canvas.height * 0.58);
-      ctx.closePath();
-      ctx.fill();
+      // 1. DRAW BACKGROUND & ORGANIC BLOBS
+      if (tpl.theme.style === 'lany-blue' || tpl.theme.style === 'lany-blue-grid') {
+        // Cobalt Blue Base
+        ctx.fillStyle = tpl.theme.bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Bottom organic black wave
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height - 180);
-      ctx.bezierCurveTo(canvas.width * 0.3, canvas.height - 230, canvas.width * 0.7, canvas.height - 130, canvas.width, canvas.height - 160);
-      ctx.lineTo(canvas.width, canvas.height);
-      ctx.lineTo(0, canvas.height);
-      ctx.closePath();
-      ctx.fill();
+        // Deep Black Organic Waves (matching LANY album aesthetic)
+        ctx.fillStyle = tpl.theme.secondary;
+        
+        // Top wave
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(canvas.width, 0);
+        ctx.lineTo(canvas.width, 85);
+        ctx.bezierCurveTo(canvas.width * 0.7, 110, canvas.width * 0.3, 50, 0, 95);
+        ctx.closePath();
+        ctx.fill();
 
-    } else if (tpl.theme.style === 'lany-sky') {
-      // Soft Sky Blue with subtle dot grid
-      ctx.fillStyle = tpl.theme.bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Middle organic cutout (left side)
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height * 0.32);
+        ctx.bezierCurveTo(70, canvas.height * 0.36, 75, canvas.height * 0.46, 0, canvas.height * 0.50);
+        ctx.closePath();
+        ctx.fill();
 
-      ctx.fillStyle = 'rgba(2, 132, 199, 0.08)';
-      for (let x = 15; x < canvas.width; x += 25) {
-        for (let y = 15; y < canvas.height; y += 25) {
-          ctx.beginPath();
-          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-          ctx.fill();
+        // Bottom organic black wave (Starts well below Photo #3!)
+        ctx.beginPath();
+        const waveStartY = totalHeight - 190;
+        ctx.moveTo(0, waveStartY);
+        ctx.bezierCurveTo(canvas.width * 0.3, waveStartY - 30, canvas.width * 0.7, waveStartY + 30, canvas.width, waveStartY - 10);
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.closePath();
+        ctx.fill();
+
+      } else if (tpl.theme.style === 'lany-sky') {
+        ctx.fillStyle = tpl.theme.bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = 'rgba(2, 132, 199, 0.08)';
+        for (let x = 15; x < canvas.width; x += 25) {
+          for (let y = 15; y < canvas.height; y += 25) {
+            ctx.beginPath();
+            ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
-      }
-    } else if (tpl.theme.style === 'lany-vintage') {
-      // Vintage Canvas Paper
-      ctx.fillStyle = tpl.theme.bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      } else if (tpl.theme.style === 'lany-vintage') {
+        ctx.fillStyle = tpl.theme.bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      // Bottom Indigo Torn Wave
-      ctx.fillStyle = tpl.theme.secondary;
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height - 120);
-      ctx.bezierCurveTo(120, canvas.height - 150, 280, canvas.height - 110, canvas.width, canvas.height - 140);
-      ctx.lineTo(canvas.width, canvas.height);
-      ctx.lineTo(0, canvas.height);
-      ctx.closePath();
-      ctx.fill();
-    } else {
-      // Classic / Y2K / Pastel
-      ctx.fillStyle = tpl.theme.bg;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-
-    // 2. HEADER GRAPHICS & BRANDING
-    ctx.textAlign = 'center';
-    if (tpl.category === 'LANY') {
-      // LANY Branding Header
-      ctx.font = '900 24px "Plus Jakarta Sans", sans-serif';
-      ctx.letterSpacing = '6px';
-      ctx.fillStyle = tpl.theme.textMain;
-      ctx.fillText('L A N Y', canvas.width / 2, 55);
-
-      ctx.font = '700 11px monospace';
-      ctx.letterSpacing = '3px';
-      ctx.fillStyle = tpl.theme.accent;
-      ctx.fillText('• DOUBLE-XL PHOTO VAULT •', canvas.width / 2, 78);
-    } else {
-      ctx.font = '800 18px "Plus Jakarta Sans", sans-serif';
-      ctx.letterSpacing = '4px';
-      ctx.fillStyle = tpl.theme.textMain;
-      ctx.fillText(tpl.theme.lyricsTop, canvas.width / 2, 55);
-    }
-
-    // 3. RENDER PHOTOS WITH ROUNDED FRAMES
-    const imagePromises = photos.map(src => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = src;
-      });
-    });
-
-    return Promise.all(imagePromises).then(images => {
-      let currentY = topPadding;
-
-      if (isGrid6) {
-        images.forEach((img, idx) => {
-          const col = idx % 2;
-          const row = Math.floor(idx / 2);
-          const x = 30 + col * (photoWidth + gap);
-          const y = topPadding + row * (photoHeight + gap);
-
-          drawRoundedPhotoCard(ctx, img, x, y, photoWidth, photoHeight, 22, tpl.theme);
-        });
-        currentY += (photoHeight * 3) + (gap * 2);
+        ctx.fillStyle = tpl.theme.secondary;
+        ctx.beginPath();
+        const waveStartY = totalHeight - 160;
+        ctx.moveTo(0, waveStartY);
+        ctx.bezierCurveTo(120, waveStartY - 25, 280, waveStartY + 20, canvas.width, waveStartY - 10);
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.lineTo(0, canvas.height);
+        ctx.closePath();
+        ctx.fill();
       } else {
-        images.forEach((img) => {
-          const x = (canvasWidth - photoWidth) / 2;
-          drawRoundedPhotoCard(ctx, img, x, currentY, photoWidth, photoHeight, 20, tpl.theme);
-          currentY += photoHeight + gap;
-        });
+        ctx.fillStyle = tpl.theme.bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
 
-      // 4. DRAW DECORATIVE SLOGANS & STICKERS (LANY VIBE)
-      drawTemplateOverlays(ctx, canvas, tpl, currentY);
+      // 2. HEADER GRAPHICS & BRANDING
+      ctx.textAlign = 'center';
+      if (tpl.category === 'LANY') {
+        ctx.font = '900 24px "Plus Jakarta Sans", sans-serif';
+        ctx.letterSpacing = '6px';
+        ctx.fillStyle = tpl.theme.textMain;
+        ctx.fillText('L A N Y', canvas.width / 2, 48);
 
-      return canvas;
+        ctx.font = '700 11px monospace';
+        ctx.letterSpacing = '3px';
+        ctx.fillStyle = tpl.theme.accent;
+        ctx.fillText('• DOUBLE-XL PHOTO VAULT •', canvas.width / 2, 68);
+      } else {
+        ctx.font = '800 17px "Plus Jakarta Sans", sans-serif';
+        ctx.letterSpacing = '4px';
+        ctx.fillStyle = tpl.theme.textMain;
+        ctx.fillText(tpl.theme.lyricsTop, canvas.width / 2, 52);
+      }
+
+      // 3. RENDER PHOTOS WITH ROUNDED FRAMES
+      const imagePromises = photosToRender.map(src => {
+        return new Promise((res) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => res(img);
+          img.onerror = () => res(null);
+          img.src = src;
+        });
+      });
+
+      Promise.all(imagePromises).then(images => {
+        let currentY = topPadding;
+
+        if (isGrid6) {
+          images.forEach((img, idx) => {
+            if (!img) return;
+            const col = idx % 2;
+            const row = Math.floor(idx / 2);
+            const x = 35 + col * (photoWidth + 30);
+            const y = topPadding + row * (photoHeight + gap);
+
+            drawRoundedPhotoCard(ctx, img, x, y, photoWidth, photoHeight, 20);
+          });
+          currentY = topPadding + (3 * photoHeight) + (2 * gap);
+        } else {
+          images.forEach((img, idx) => {
+            if (!img) return;
+            const x = (canvasWidth - photoWidth) / 2;
+            drawRoundedPhotoCard(ctx, img, x, currentY, photoWidth, photoHeight, 18);
+            currentY += photoHeight + gap;
+          });
+        }
+
+        // 4. DRAW DECORATIVE SLOGANS & STICKERS (Cleanly positioned in bottom margin)
+        drawTemplateOverlays(ctx, canvas, tpl, currentY);
+
+        resolve(canvas);
+      });
     });
   };
 
   // Helper: Draw photo card with rounded corners and clean white border
-  const drawRoundedPhotoCard = (ctx, img, x, y, w, h, radius, theme) => {
+  const drawRoundedPhotoCard = (ctx, img, x, y, w, h, radius) => {
     ctx.save();
 
     // White Card Background & Outline
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.roundRect(x - 4, y - 4, w + 8, h + 8, radius + 2);
+    ctx.roundRect(x - 5, y - 5, w + 10, h + 10, radius + 2);
     ctx.fill();
 
     // Subtle Drop Shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowColor = 'rgba(0,0,0,0.22)';
     ctx.shadowBlur = 12;
     ctx.shadowOffsetY = 4;
 
@@ -539,52 +581,51 @@ export default function Photobooth({ onBack }) {
     ctx.restore();
   };
 
-  // Helper: Draw lyric banners and icons
-  const drawTemplateOverlays = (ctx, canvas, tpl, endY) => {
+  // Helper: Draw lyric banners and icons (Safely in bottom padding)
+  const drawTemplateOverlays = (ctx, canvas, tpl, photoEndY) => {
     ctx.save();
 
     if (tpl.category === 'LANY') {
-      // Slanted Slanted Banner 1 ("I STILL REMEMBER")
-      drawLyricBadge(ctx, 45, 175, tpl.theme.lyricsTop, '#1a44e8', '#ffffff');
+      // Slanted Banner 1 ("I STILL REMEMBER")
+      drawLyricBadge(ctx, 45, 150, tpl.theme.lyricsTop, '#1a44e8', '#ffffff');
 
       // Slanted Banner 2 ("I WILL FOREVER")
-      drawLyricBadge(ctx, canvas.width - 190, canvas.height * 0.55, tpl.theme.lyricsMid, '#1a44e8', '#ffffff');
+      drawLyricBadge(ctx, canvas.width - 180, canvas.height * 0.45, tpl.theme.lyricsMid, '#1a44e8', '#ffffff');
 
-      // Big Distressed Typography at Footer: "I MISS YOU DOUBLE-XL"
+      // Footer Typography safely below the last photo
+      const textStartY = photoEndY + 45;
+
       ctx.textAlign = 'center';
-      ctx.font = '900 28px "Plus Jakarta Sans", sans-serif';
+      ctx.font = '900 26px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = '#ffffff';
       ctx.letterSpacing = '1px';
-      ctx.fillText(tpl.theme.lyricsBot, canvas.width / 2, canvas.height - 75);
+      ctx.fillText(tpl.theme.lyricsBot, canvas.width / 2, textStartY);
 
-      // Quote & Stars
       ctx.font = '600 12px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = tpl.theme.accent;
-      ctx.fillText(tpl.theme.quote.toUpperCase(), canvas.width / 2, canvas.height - 45);
+      ctx.fillText(tpl.theme.quote.toUpperCase(), canvas.width / 2, textStartY + 28);
 
-      // Date Stamp
       const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
       ctx.font = '500 11px monospace';
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.fillText(`★ ${todayStr} • FNYKIDS PHOTOBOOTH ★`, canvas.width / 2, canvas.height - 24);
+      ctx.fillText(`★ ${todayStr} • FNYKIDS PHOTOBOOTH ★`, canvas.width / 2, textStartY + 52);
 
       // Aesthetic Hearts
-      drawHeart(ctx, 35, canvas.height - 85, 14, '#38bdf8');
-      drawHeart(ctx, canvas.width - 45, canvas.height - 85, 14, '#38bdf8');
+      drawHeart(ctx, 35, textStartY - 8, 14, '#38bdf8');
+      drawHeart(ctx, canvas.width - 45, textStartY - 8, 14, '#38bdf8');
     } else {
-      // Classic / Y2K Footer
       ctx.textAlign = 'center';
       ctx.font = '700 15px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = tpl.theme.textMain;
-      ctx.fillText(tpl.theme.lyricsMid, canvas.width / 2, canvas.height - 75);
+      ctx.fillText(tpl.theme.lyricsMid, canvas.width / 2, photoEndY + 40);
 
       ctx.font = '500 12px "Plus Jakarta Sans", sans-serif';
       ctx.fillStyle = tpl.theme.accent;
-      ctx.fillText(tpl.theme.quote, canvas.width / 2, canvas.height - 50);
+      ctx.fillText(tpl.theme.quote, canvas.width / 2, photoEndY + 65);
 
       const todayStr = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
       ctx.font = '400 11px monospace';
-      ctx.fillText(`• ${todayStr} • FNYKIDS •`, canvas.width / 2, canvas.height - 26);
+      ctx.fillText(`• ${todayStr} • FNYKIDS •`, canvas.width / 2, photoEndY + 90);
     }
 
     ctx.restore();
@@ -593,7 +634,7 @@ export default function Photobooth({ onBack }) {
   const drawLyricBadge = (ctx, x, y, text, bg, color) => {
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate(-0.06); // subtle aesthetic slant
+    ctx.rotate(-0.06);
 
     ctx.font = '800 11px "Plus Jakarta Sans", sans-serif';
     const textWidth = ctx.measureText(text).width;
@@ -625,16 +666,22 @@ export default function Photobooth({ onBack }) {
     ctx.restore();
   };
 
+  // Re-render preview automatically when entering preview
+  useEffect(() => {
+    if (currentView === 'preview' && photos.length > 0 && !previewDataUrl) {
+      generateAndSetPreview(photos, selectedTemplate);
+    }
+  }, [currentView, selectedTemplate]);
+
   // Download Trigger
   const handleDownloadStrip = async () => {
     if (photos.length === 0) return;
-    await renderStripToCanvas();
-    const canvas = stripCanvasRef.current;
+    const canvas = await renderCanvasPromise(photos, selectedTemplate);
     if (!canvas) return;
 
     const link = document.createElement('a');
     link.download = `fnykids-${selectedTemplate.id}-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png', 0.95);
+    link.href = canvas.toDataURL('image/png', 0.96);
     link.click();
     confetti({ particleCount: 70, spread: 80 });
   };
@@ -671,7 +718,7 @@ export default function Photobooth({ onBack }) {
           {photos.length > 0 && (
             <button
               className={`seg-btn ${currentView === 'preview' ? 'active' : ''}`}
-              onClick={() => { renderStripToCanvas(); setCurrentView('preview'); }}
+              onClick={() => generateAndSetPreview(photos, selectedTemplate)}
             >
               <Eye size={15} /> Hasil ({photos.length}/{targetCount})
             </button>
@@ -681,7 +728,7 @@ export default function Photobooth({ onBack }) {
         <div style={{ display: 'flex', gap: '6px' }}>
           {photos.length > 0 && (
             <button
-              onClick={() => setPhotos([])}
+              onClick={() => { setPhotos([]); setPreviewDataUrl(null); }}
               className="btn btn-secondary"
               style={{ padding: '8px 12px', fontSize: '0.78rem', color: '#ef4444' }}
               title="Reset Semua Foto"
@@ -785,7 +832,7 @@ export default function Photobooth({ onBack }) {
                       flex: 1,
                       margin: '8px 0'
                     }}>
-                      {Array.from({ length: Math.min(tpl.photoCount, 4) }).map((_, i) => (
+                      {Array.from({ length: tpl.photoCount }).map((_, i) => (
                         <div key={i} style={{
                           background: '#ffffff',
                           borderRadius: '8px',
@@ -870,6 +917,27 @@ export default function Photobooth({ onBack }) {
               >
                 Ganti Frame
               </button>
+            </div>
+
+            {/* AI HD Enhancement Toggle (NEW!) */}
+            <div className="card" style={{ padding: '14px', background: isAiHd ? 'linear-gradient(135deg, rgba(37,99,235,0.08), rgba(14,165,233,0.08))' : 'var(--card)', border: isAiHd ? '1.5px solid #93c5fd' : '1px solid var(--line)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '28px', height: '28px', borderRadius: '8px', background: 'linear-gradient(135deg, #1d4ed8, #0ea5e9)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--ink)' }}>AI HD Enhancer (Super-Resolution)</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Pertajam wajah & tingkatkan resolusi 2x lipat</div>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isAiHd}
+                  onChange={e => setIsAiHd(e.target.checked)}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+              </div>
             </div>
 
             {/* Delay Timer (Jepreto-style: 1s, 3s, 5s) */}
@@ -975,7 +1043,7 @@ export default function Photobooth({ onBack }) {
                 }}
               />
 
-              {/* Tag Header Over Video (Jepreto-style) */}
+              {/* Tag Header Over Video */}
               {cameraActive && (
                 <div style={{
                   position: 'absolute', top: '14px', right: '14px',
@@ -1064,13 +1132,13 @@ export default function Photobooth({ onBack }) {
               </div>
             )}
 
-            {/* Captured Photos Slots Progress Bar (Jepreto-style) */}
+            {/* Captured Photos Slots Progress Bar */}
             <div className="card" style={{ padding: '14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 800 }}>Progres Foto ({photos.length}/{targetCount})</span>
                 {photos.length === targetCount && (
                   <button
-                    onClick={() => { renderStripToCanvas(); setCurrentView('preview'); }}
+                    onClick={() => generateAndSetPreview(photos, selectedTemplate)}
                     className="btn btn-primary"
                     style={{ padding: '4px 12px', fontSize: '0.74rem' }}
                   >
@@ -1103,7 +1171,11 @@ export default function Photobooth({ onBack }) {
                         <>
                           <img src={photoSrc} alt={`Capture ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           <button
-                            onClick={() => setPhotos(photos.filter((_, i) => i !== idx))}
+                            onClick={() => {
+                              const filtered = photos.filter((_, i) => i !== idx);
+                              setPhotos(filtered);
+                              setPreviewDataUrl(null);
+                            }}
                             style={{
                               position: 'absolute', top: '3px', right: '3px',
                               background: 'rgba(0,0,0,0.6)', color: '#fff',
@@ -1143,7 +1215,7 @@ export default function Photobooth({ onBack }) {
               Hasil Photobooth {selectedTemplate.title}
             </h2>
             <p style={{ fontSize: '0.82rem', color: 'var(--muted)', margin: 0 }}>
-              Frame resmi beresolusi tinggi, siap simpan ke galeri atau posting ke Instagram/TikTok!
+              Semua {photos.length} foto strip lengkap & tajam, siap simpan ke galeri atau posting ke media sosial!
             </p>
           </div>
 
@@ -1176,28 +1248,33 @@ export default function Photobooth({ onBack }) {
             </button>
           </div>
 
-          {/* Canvas Render Element */}
+          {/* Image Preview Element (Uses Image DataURL for 100% reliable viewing & tap-to-save!) */}
           <div className="card" style={{ padding: '14px', background: 'var(--card)', borderRadius: '18px', boxShadow: 'var(--shadow-md)', maxWidth: '100%', overflow: 'hidden' }}>
-            <canvas
-              ref={stripCanvasRef}
-              style={{
-                display: 'block',
-                maxWidth: '100%',
-                maxHeight: '75vh',
-                height: 'auto',
-                borderRadius: '12px',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.18)'
-              }}
-            />
+            {previewDataUrl ? (
+              <img
+                src={previewDataUrl}
+                alt="Hasil Photobooth Strip"
+                style={{
+                  display: 'block',
+                  maxWidth: '100%',
+                  maxHeight: '75vh',
+                  height: 'auto',
+                  borderRadius: '12px',
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.18)'
+                }}
+              />
+            ) : (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--muted)' }}>
+                {isRendering ? 'Sedang merender frame beresolusi tinggi...' : 'Memuat gambar...'}
+              </div>
+            )}
           </div>
 
         </div>
       )}
 
-      {/* Hidden canvas for background rendering */}
-      {currentView !== 'preview' && (
-        <canvas ref={stripCanvasRef} style={{ display: 'none' }} />
-      )}
+      {/* Persistent off-screen canvas for export rendering */}
+      <canvas ref={stripCanvasRef} style={{ display: 'none' }} />
 
     </div>
   );

@@ -12,6 +12,7 @@ import NotesAndTodo from './tools/NotesAndTodo';
 import CollegeSchedule from './tools/CollegeSchedule';
 import EncodingUtility from './tools/EncodingUtility';
 import DocSummarizer from './tools/DocSummarizer';
+import HdEnhancer from './tools/HdEnhancer';
 import Logo from './components/Logo';
 
 import {
@@ -41,6 +42,7 @@ export default function App() {
       case 'todo': return <NotesAndTodo {...props} />;
       case 'schedule': return <CollegeSchedule {...props} />;
       case 'summarizer': return <DocSummarizer {...props} />;
+      case 'hd': return <HdEnhancer {...props} />;
       case 'encoding': return <EncodingUtility {...props} />;
       default: return <Home onSelectTool={setCurrentTool} />;
     }
